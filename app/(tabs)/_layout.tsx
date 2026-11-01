@@ -8,9 +8,10 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 type TabIconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const tabIcons: Record<string, TabIconName> = {
-  index: "home",
+  index: "trending-up",
   explore: "compass",
-  characters: "people",
+  portfolio: "wallet",
+  tasks: "checkbox",
 };
 
 export default function TabLayout() {
@@ -44,9 +45,10 @@ export default function TabLayout() {
         ),
       })}
     >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="index" options={{ title: "Markets" }} />
       <Tabs.Screen name="explore" options={{ title: "Explore" }} />
-      <Tabs.Screen name="characters" options={{ title: "Characters" }} />
+      <Tabs.Screen name="portfolio" options={{ title: "Portfolio" }} />
+      <Tabs.Screen name="tasks" options={{ title: "Tasks" }} />
     </Tabs>
   );
 }

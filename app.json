@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "gtasix",
+    "name": "TradePulse",
     "slug": "gtasix",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "gtasix",
+    "scheme": "tradepulse",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -14,9 +14,10 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#100b1e"
+        "backgroundColor": "#0B0E14"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.tradepulse.app"
     },
     "web": {
       "bundler": "metro",
@@ -31,13 +32,19 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#100b1e",
+          "backgroundColor": "#0B0E14",
           "dark": {
-            "backgroundColor": "#100b1e"
+            "backgroundColor": "#0B0E14"
           }
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "99c70c38-2890-4849-9be0-d3d4b7d0b295"
+      }
+    }
   }
 }

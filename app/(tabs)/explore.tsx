@@ -1,227 +1,250 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useThemeColor } from "@/hooks/useThemeColor";
+import { getProducts, type Product } from "@/services/products";
 
-const districts = [
+const insights = [
   {
-    name: "Vice City",
-    tag: "NEON & NIGHTLIFE",
-    detail: "Ocean Drive lights up after dark. Keep your head on a swivel.",
-    icon: "business" as const,
+    title: "Market Status",
+    detail: "Bullish trend today",
+    icon: "trending-up" as const,
+    color: "accent" as const,
   },
   {
-    name: "Leonida Keys",
-    tag: "ISLAND TIME",
-    detail: "A string of sun-drenched keys where the water runs deep.",
-    icon: "boat" as const,
+    title: "Top Gainer",
+    detail: "Solana (+6.4%)",
+    icon: "star-outline" as const,
+    color: "aqua" as const,
   },
   {
-    name: "Grassrivers",
-    tag: "WILDER COUNTRY",
-    detail: "Backwater trails, open skies, and plenty of room to disappear.",
-    icon: "leaf" as const,
+    title: "Daily Tip",
+    detail: "Always manage your risk and set stop losses.",
+    icon: "bulb-outline" as const,
+    color: "accent" as const,
   },
 ];
 
 export default function ExploreScreen() {
-  const [selected, setSelected] = useState(0);
   const insets = useSafeAreaInsets();
-  const accent = useThemeColor({}, "accent");
   const muted = useThemeColor({}, "textMuted");
   const border = useThemeColor({}, "border");
+  const surface = useThemeColor({}, "surface");
+  const accent = useThemeColor({}, "accent");
+  const aqua = useThemeColor({}, "aqua");
+  const danger = useThemeColor({}, "danger");
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProducts = useCallback(async (refresh = false) => {
+    setError(null);
+    if (refresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      setProducts(await getProducts());
+    } catch {
+      setError("Products could not be loaded. Check your connection and try again.");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchProducts();
+  }, [fetchProducts]);
+
+  if (isLoading && products.length === 0) {
+    return (
+      <ThemedView style={[styles.centered, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={accent} />
+        <ThemedText style={[styles.statusText, { color: muted }]}>Loading products…</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (error && products.length === 0) {
+    return (
+      <ThemedView style={[styles.centered, styles.errorState, { paddingTop: insets.top }]}>
+        <Ionicons name="cloud-offline-outline" size={40} color={danger} />
+        <ThemedText variant="subtitle">Unable to load products</ThemedText>
+        <ThemedText style={[styles.statusText, { color: muted }]}>{error}</ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void fetchProducts(true)}
+          style={[styles.retryButton, { backgroundColor: accent }]}
+        >
+          <ThemedText style={styles.retryText}>Retry</ThemedText>
+        </Pressable>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 28 }]}
-      >
-        <ThemedText variant="label" style={{ color: accent }}>
-          THE LEONIDA DOSSIER
-        </ThemedText>
-        <ThemedText variant="title" style={styles.title}>
-          Explore the{"\n"}neighborhood.
-        </ThemedText>
-        <ThemedText style={{ color: muted }}>
-          Every corner has a story. Pick a district to check its pulse.
-        </ThemedText>
-
-        <ThemedView style={styles.mapCard}>
-          <ThemedView style={styles.mapCircleOne} />
-          <ThemedView style={styles.mapCircleTwo} />
-          <ThemedView style={styles.mapRoadHorizontal} />
-          <ThemedView style={styles.mapRoadVertical} />
-          <ThemedView style={[styles.mapPin, { backgroundColor: accent }]}>
-            <Ionicons name="location" size={19} color="#fff" />
-          </ThemedView>
-          <ThemedView style={styles.mapLabels}>
-            <ThemedText variant="label" style={styles.mapTitle}>
-              LEONIDA
+      <FlatList
+        data={products}
+        keyExtractor={(product) => String(product.id)}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 24, paddingBottom: 28 + insets.bottom },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => void fetchProducts(true)}
+            tintColor={accent}
+            colors={[accent]}
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            <ThemedText variant="title">Market Insights</ThemedText>
+            <ThemedText style={[styles.subtitle, { color: muted }]}>
+              A few helpful things to know today
             </ThemedText>
-            <ThemedText variant="caption" style={styles.mapCaption}>
-              FIELD MAP · 3 REGIONS
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
 
-        <ThemedView style={styles.listHeader}>
-          <ThemedText variant="subtitle">Choose a district</ThemedText>
-          <ThemedText variant="caption" style={{ color: muted }}>
-            0{selected + 1} / 03
-          </ThemedText>
-        </ThemedView>
-        {districts.map((district, index) => {
-          const isSelected = selected === index;
-          return (
-            <Pressable
-              key={district.name}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              onPress={() => setSelected(index)}
-              style={({ pressed }) => [
-                styles.districtCard,
-                { borderColor: isSelected ? accent : border },
-                isSelected && styles.selectedCard,
-                pressed && styles.pressedCard,
-              ]}
-            >
-              <ThemedView
-                style={[
-                  styles.districtIcon,
-                  { backgroundColor: isSelected ? accent : "transparent" },
-                  !isSelected && { borderColor: border, borderWidth: 1 },
-                ]}
-              >
-                <Ionicons
-                  name={district.icon}
-                  size={21}
-                  color={isSelected ? "#fff" : muted}
-                />
-              </ThemedView>
-              <ThemedView style={styles.districtCopy}>
-                <ThemedText variant="label" style={{ color: muted }}>
-                  {district.tag}
+            {insights.map((insight) => {
+              const color = insight.color === "accent" ? accent : aqua;
+
+              return (
+                <ThemedView
+                  key={insight.title}
+                  style={[styles.insightCard, { backgroundColor: surface, borderColor: border }]}
+                >
+                  <ThemedView style={[styles.icon, { backgroundColor: color + "18" }]}>
+                    <Ionicons name={insight.icon} size={21} color={color} />
+                  </ThemedView>
+                  <ThemedView style={styles.cardText}>
+                    <ThemedText variant="subtitle" style={styles.cardTitle}>
+                      {insight.title}
+                    </ThemedText>
+                    <ThemedText style={{ color: muted }}>{insight.detail}</ThemedText>
+                  </ThemedView>
+                </ThemedView>
+              );
+            })}
+
+            <View style={styles.productsHeading}>
+              <ThemedText variant="subtitle">Explore products</ThemedText>
+              {isRefreshing ? <ActivityIndicator color={accent} /> : null}
+            </View>
+            {error ? (
+              <View style={styles.errorRow}>
+                <ThemedText accessibilityRole="alert" style={[styles.inlineError, { color: danger }]}>
+                  {error}
                 </ThemedText>
-                <ThemedText variant="subtitle">{district.name}</ThemedText>
-                {isSelected && (
-                  <ThemedText variant="caption" style={{ color: muted }}>
-                    {district.detail}
-                  </ThemedText>
-                )}
-              </ThemedView>
-              <Ionicons
-                name={isSelected ? "checkmark-circle" : "chevron-forward"}
-                size={20}
-                color={isSelected ? accent : muted}
-              />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void fetchProducts()}
+                  style={[styles.inlineRetryButton, { borderColor: border }]}
+                >
+                  <ThemedText style={{ color: accent, fontWeight: "700" }}>Retry</ThemedText>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ThemedView style={[styles.productCard, { backgroundColor: surface, borderColor: border }]}>
+            <Image source={{ uri: item.thumbnail }} style={styles.productImage} />
+            <View style={styles.productDetails}>
+              <ThemedText variant="subtitle" numberOfLines={2} style={styles.productTitle}>
+                {item.title}
+              </ThemedText>
+              <ThemedText numberOfLines={3} style={[styles.productDescription, { color: muted }]}>
+                {item.description}
+              </ThemedText>
+              <View style={styles.productMeta}>
+                <ThemedText variant="caption" style={[styles.category, { color: aqua }]}>
+                  {item.category}
+                </ThemedText>
+                <ThemedText style={[styles.price, { color: accent }]}>
+                  ${item.price.toFixed(2)}
+                </ThemedText>
+              </View>
+            </View>
+          </ThemedView>
+        )}
+        ListEmptyComponent={
+          <ThemedText style={[styles.statusText, { color: muted }]}>
+            No products are available right now.
+          </ThemedText>
+        }
+      />
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: 22, paddingTop: 28, paddingBottom: 36, gap: 12 },
-  title: { fontSize: 34, lineHeight: 39, marginVertical: 2 },
-  mapCard: {
-    height: 190,
-    overflow: "hidden",
-    borderRadius: 22,
-    marginTop: 8,
-    backgroundColor: "#18252a",
-  },
-  mapCircleOne: {
-    position: "absolute",
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: "#307b6b",
-    opacity: 0.7,
-    left: -36,
-    top: -74,
-  },
-  mapCircleTwo: {
-    position: "absolute",
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "#b26b82",
-    opacity: 0.7,
-    right: -55,
-    bottom: -128,
-  },
-  mapRoadHorizontal: {
-    position: "absolute",
-    height: 3,
-    left: -10,
-    right: -10,
-    top: 95,
-    backgroundColor: "#f9dfbd88",
-    transform: [{ rotate: "-12deg" }],
-  },
-  mapRoadVertical: {
-    position: "absolute",
-    width: 3,
-    top: -10,
-    bottom: -10,
-    right: "37%",
-    backgroundColor: "#f9dfbd88",
-    transform: [{ rotate: "20deg" }],
-  },
-  mapPin: {
-    position: "absolute",
-    top: 47,
-    left: "48%",
-    width: 39,
-    height: 39,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: "#ffffff88",
-  },
-  mapLabels: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 15,
-    gap: 3,
-    backgroundColor: "#0d1524aa",
-  },
-  mapTitle: { color: "#fff", fontSize: 16, letterSpacing: 3 },
-  mapCaption: { color: "#eddae9" },
-  listHeader: {
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 24 },
+  errorState: { paddingHorizontal: 32 },
+  statusText: { marginTop: 4, textAlign: "center", lineHeight: 21 },
+  content: { paddingHorizontal: 20 },
+  subtitle: { marginTop: 4, marginBottom: 22 },
+  insightCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  districtCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 13,
-    borderRadius: 17,
+    gap: 14,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    marginBottom: 2,
+    borderRadius: 16,
   },
-  selectedCard: { backgroundColor: "#e85b9f12" },
-  pressedCard: { opacity: 0.78 },
-  districtIcon: {
-    width: 43,
-    height: 43,
+  icon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13 },
+  cardText: { flex: 1, gap: 3, backgroundColor: "transparent" },
+  cardTitle: { fontSize: 16, lineHeight: 21 },
+  productsHeading: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
+    marginTop: 18,
+    marginBottom: 12,
   },
-  districtCopy: { flex: 1, gap: 3, backgroundColor: "transparent" },
+  inlineError: { marginBottom: 10, fontSize: 13 },
+  errorRow: { gap: 8, marginBottom: 10 },
+  inlineRetryButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderRadius: 9,
+  },
+  productCard: {
+    flexDirection: "row",
+    gap: 13,
+    padding: 12,
+    marginBottom: 11,
+    borderWidth: 1,
+    borderRadius: 15,
+  },
+  productImage: { width: 88, height: 88, borderRadius: 11, backgroundColor: "#e9eef2" },
+  productDetails: { flex: 1, justifyContent: "space-between", gap: 5 },
+  productTitle: { fontSize: 15, lineHeight: 20 },
+  productDescription: { fontSize: 12, lineHeight: 17 },
+  productMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  category: { fontSize: 11, textTransform: "capitalize" },
+  price: { fontSize: 15, fontWeight: "800" },
+  retryButton: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 11, marginTop: 4 },
+  retryText: { fontWeight: "800", color: "#07130c" },
 });
