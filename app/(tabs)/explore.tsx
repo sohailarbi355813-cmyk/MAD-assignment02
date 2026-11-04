@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,28 +13,44 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useThemeColor } from "@/hooks/useThemeColor";
-import { getProducts, type Product } from "@/services/products";
+import { getMarketAssets, type MarketAsset } from "@/services/markets";
 
 const insights = [
   {
-    title: "Market Status",
-    detail: "Bullish trend today",
+    title: "Crypto market",
+    detail: "Explore digital assets by market cap",
     icon: "trending-up" as const,
     color: "accent" as const,
   },
   {
-    title: "Top Gainer",
-    detail: "Solana (+6.4%)",
-    icon: "star-outline" as const,
+    title: "24-hour movers",
+    detail: "Compare the latest daily price changes",
+    icon: "swap-vertical" as const,
     color: "aqua" as const,
   },
   {
     title: "Daily Tip",
-    detail: "Always manage your risk and set stop losses.",
+    detail: "Market prices can change quickly. Manage your risk.",
     icon: "bulb-outline" as const,
     color: "accent" as const,
   },
 ];
+
+function formatPrice(price: number): string {
+  return `$${price.toLocaleString("en-US", {
+    maximumFractionDigits: price < 1 ? 6 : 2,
+  })}`;
+}
+
+function formatMarketCap(marketCap: number): string {
+  if (marketCap >= 1_000_000_000_000) {
+    return `$${(marketCap / 1_000_000_000_000).toFixed(1)}T`;
+  }
+  if (marketCap >= 1_000_000_000) {
+    return `$${(marketCap / 1_000_000_000).toFixed(1)}B`;
+  }
+  return `$${(marketCap / 1_000_000).toFixed(0)}M`;
+}
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -46,23 +61,22 @@ export default function ExploreScreen() {
   const aqua = useThemeColor({}, "aqua");
   const danger = useThemeColor({}, "danger");
 
-  const [products, setProducts] = useState<Product[]>([]);
+  const [assets, setAssets] = useState<MarketAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProducts = useCallback(async (refresh = false) => {
+  const fetchAssets = useCallback(async (refresh = false) => {
     setError(null);
+    setIsLoading(true);
     if (refresh) {
       setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
     }
 
     try {
-      setProducts(await getProducts());
+      setAssets(await getMarketAssets());
     } catch {
-      setError("Products could not be loaded. Check your connection and try again.");
+      setError("Market data could not be loaded. Check your connection and try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -70,27 +84,27 @@ export default function ExploreScreen() {
   }, []);
 
   useEffect(() => {
-    void fetchProducts();
-  }, [fetchProducts]);
+    void fetchAssets();
+  }, [fetchAssets]);
 
-  if (isLoading && products.length === 0) {
+  if (isLoading && assets.length === 0) {
     return (
       <ThemedView style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={accent} />
-        <ThemedText style={[styles.statusText, { color: muted }]}>Loading products…</ThemedText>
+        <ThemedText style={[styles.statusText, { color: muted }]}>Loading market data…</ThemedText>
       </ThemedView>
     );
   }
 
-  if (error && products.length === 0) {
+  if (error && assets.length === 0) {
     return (
       <ThemedView style={[styles.centered, styles.errorState, { paddingTop: insets.top }]}>
         <Ionicons name="cloud-offline-outline" size={40} color={danger} />
-        <ThemedText variant="subtitle">Unable to load products</ThemedText>
+        <ThemedText variant="subtitle">Unable to load market data</ThemedText>
         <ThemedText style={[styles.statusText, { color: muted }]}>{error}</ThemedText>
         <Pressable
           accessibilityRole="button"
-          onPress={() => void fetchProducts(true)}
+          onPress={() => void fetchAssets(true)}
           style={[styles.retryButton, { backgroundColor: accent }]}
         >
           <ThemedText style={styles.retryText}>Retry</ThemedText>
@@ -102,8 +116,8 @@ export default function ExploreScreen() {
   return (
     <ThemedView style={styles.screen}>
       <FlatList
-        data={products}
-        keyExtractor={(product) => String(product.id)}
+        data={assets}
+        keyExtractor={(asset) => asset.id}
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + 24, paddingBottom: 28 + insets.bottom },
@@ -111,7 +125,7 @@ export default function ExploreScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
-            onRefresh={() => void fetchProducts(true)}
+            onRefresh={() => void fetchAssets(true)}
             tintColor={accent}
             colors={[accent]}
           />
@@ -120,7 +134,7 @@ export default function ExploreScreen() {
           <View>
             <ThemedText variant="title">Market Insights</ThemedText>
             <ThemedText style={[styles.subtitle, { color: muted }]}>
-              A few helpful things to know today
+              Live cryptocurrency prices and market trends
             </ThemedText>
 
             {insights.map((insight) => {
@@ -144,8 +158,8 @@ export default function ExploreScreen() {
               );
             })}
 
-            <View style={styles.productsHeading}>
-              <ThemedText variant="subtitle">Explore products</ThemedText>
+            <View style={styles.assetsHeading}>
+              <ThemedText variant="subtitle">Top crypto assets</ThemedText>
               {isRefreshing ? <ActivityIndicator color={accent} /> : null}
             </View>
             {error ? (
@@ -155,7 +169,7 @@ export default function ExploreScreen() {
                 </ThemedText>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => void fetchProducts()}
+                  onPress={() => void fetchAssets(true)}
                   style={[styles.inlineRetryButton, { borderColor: border }]}
                 >
                   <ThemedText style={{ color: accent, fontWeight: "700" }}>Retry</ThemedText>
@@ -165,29 +179,46 @@ export default function ExploreScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <ThemedView style={[styles.productCard, { backgroundColor: surface, borderColor: border }]}>
-            <Image source={{ uri: item.thumbnail }} style={styles.productImage} />
-            <View style={styles.productDetails}>
-              <ThemedText variant="subtitle" numberOfLines={2} style={styles.productTitle}>
-                {item.title}
+          <ThemedView style={[styles.assetCard, { backgroundColor: surface, borderColor: border }]}>
+            <View style={[styles.assetSymbol, { backgroundColor: accent + "18" }]}>
+              <ThemedText style={[styles.symbolText, { color: accent }]}>
+                {item.symbol.toUpperCase().slice(0, 3)}
               </ThemedText>
-              <ThemedText numberOfLines={3} style={[styles.productDescription, { color: muted }]}>
-                {item.description}
+            </View>
+            <View style={styles.assetDetails}>
+              <ThemedText variant="subtitle" numberOfLines={1} style={styles.assetName}>
+                {item.name}
               </ThemedText>
-              <View style={styles.productMeta}>
-                <ThemedText variant="caption" style={[styles.category, { color: aqua }]}>
-                  {item.category}
+              <ThemedText variant="caption" style={{ color: muted }}>
+                {item.symbol.toUpperCase()} · Market cap {formatMarketCap(item.market_cap)}
+              </ThemedText>
+            </View>
+            <View style={styles.assetPrice}>
+              <ThemedText style={styles.price}>
+                {formatPrice(item.current_price)}
+              </ThemedText>
+              <ThemedText
+                variant="caption"
+                style={{
+                  color:
+                    item.price_change_percentage_24h === null
+                      ? muted
+                      : item.price_change_percentage_24h >= 0
+                        ? accent
+                        : danger,
+                  fontWeight: "700",
+                }}
+              >
+                {item.price_change_percentage_24h === null
+                  ? "—"
+                  : `${item.price_change_percentage_24h >= 0 ? "+" : ""}${item.price_change_percentage_24h.toFixed(2)}%`}
                 </ThemedText>
-                <ThemedText style={[styles.price, { color: accent }]}>
-                  ${item.price.toFixed(2)}
-                </ThemedText>
-              </View>
             </View>
           </ThemedView>
         )}
         ListEmptyComponent={
           <ThemedText style={[styles.statusText, { color: muted }]}>
-            No products are available right now.
+            No market assets are available right now.
           </ThemedText>
         }
       />
@@ -214,7 +245,7 @@ const styles = StyleSheet.create({
   icon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13 },
   cardText: { flex: 1, gap: 3, backgroundColor: "transparent" },
   cardTitle: { fontSize: 16, lineHeight: 21 },
-  productsHeading: {
+  assetsHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -230,21 +261,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 9,
   },
-  productCard: {
+  assetCard: {
     flexDirection: "row",
-    gap: 13,
-    padding: 12,
+    alignItems: "center",
+    gap: 12,
+    padding: 14,
     marginBottom: 11,
     borderWidth: 1,
     borderRadius: 15,
   },
-  productImage: { width: 88, height: 88, borderRadius: 11, backgroundColor: "#e9eef2" },
-  productDetails: { flex: 1, justifyContent: "space-between", gap: 5 },
-  productTitle: { fontSize: 15, lineHeight: 20 },
-  productDescription: { fontSize: 12, lineHeight: 17 },
-  productMeta: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  category: { fontSize: 11, textTransform: "capitalize" },
-  price: { fontSize: 15, fontWeight: "800" },
+  assetSymbol: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13 },
+  symbolText: { fontSize: 12, fontWeight: "800" },
+  assetDetails: { flex: 1, gap: 4, backgroundColor: "transparent" },
+  assetName: { fontSize: 15, lineHeight: 20 },
+  assetPrice: { alignItems: "flex-end", gap: 4, backgroundColor: "transparent" },
+  price: { fontSize: 14, fontWeight: "800" },
   retryButton: { paddingHorizontal: 20, paddingVertical: 11, borderRadius: 11, marginTop: 4 },
   retryText: { fontWeight: "800", color: "#07130c" },
 });
